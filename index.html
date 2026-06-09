@@ -2,8 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>施工现场用电负荷计算工具集 | JGJ 46-2005 标准</title>
+    <!-- 优化视口：允许用户缩放，提升无障碍体验 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>施工现场用电负荷计算工具集 | JGJ 46-2005 标准（专业优化版）</title>
     <style>
         * {
             margin: 0;
@@ -58,6 +60,8 @@
             background: #fff;
             padding: 12px 20px 0 20px;
             border-bottom: 1px solid #e9edf2;
+            overflow-x: auto;
+            scrollbar-width: thin;
         }
         .tab-item {
             background: none;
@@ -112,6 +116,22 @@
             font-size: 0.8rem;
             font-weight: 600;
             color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .info-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            background: #cbd5e1;
+            color: #1e293b;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 11px;
+            line-height: 16px;
+            cursor: help;
+            font-weight: bold;
         }
         input, select {
             padding: 12px 14px;
@@ -119,6 +139,8 @@
             border-radius: 16px;
             font-size: 0.9rem;
             outline: none;
+            background: #fff;
+            transition: 0.2s;
         }
         input:focus, select:focus {
             border-color: #2c6bdb;
@@ -177,6 +199,8 @@
             border-radius: 28px;
             padding: 6px 16px;
             font-size: 0.85rem;
+            font-weight: 600;
+            color: #1e3a8a;
         }
         .note {
             text-align: center;
@@ -186,14 +210,28 @@
             padding-top: 14px;
             border-top: 1px solid #e2edf7;
         }
+        .error-msg {
+            color: #dc2626;
+            font-size: 0.7rem;
+            margin-top: 4px;
+            display: none;
+        }
+        .example-hint {
+            background: #eef2ff;
+            padding: 6px 12px;
+            border-radius: 14px;
+            font-size: 0.7rem;
+            color: #1e40af;
+            margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="hero">
-        <h1>⚡ 施工现场用电负荷计算工具集 <small>JGJ 46-2005</small></h1>
-        <div class="subtitle">设备暂载率换算 · 负荷计算 · 配电导线与开关选型</div>
+        <h1>⚡ 施工现场用电负荷计算工具集 <small>JGJ 46-2005 专业版</small></h1>
+        <div class="subtitle">暂载率换算 · 需用系数法 · 导线/开关选型 · 支持独立系数分配箱</div>
     </div>
 
     <div class="tab-bar">
@@ -207,61 +245,134 @@
         <button class="tab-item" data-tab="switch">⚙️ 开关箱</button>
     </div>
 
-    <!-- 电焊机 -->
+    <!-- 电焊机计算 -->
     <div class="tab-pane active" id="welder">
-        <div class="formula-hint">📐 公式：交流焊机 Sₛ=√JC·Sₑ｜直流焊机 Pₛ=√JC·Pₑ（JC=100%）</div>
-        <div class="field"><label>设备类型</label><select id="welderType"><option value="ac">交流电焊机 (kVA)</option><option value="dc">直流电焊机 (kW)</option></select></div>
-        <div class="field"><label>铭牌容量</label><input type="number" id="welderSe" step="0.01"></div>
-        <div class="field"><label>暂载率 JC (%)</label><input type="number" id="welderJc" value="60" step="0.1"></div>
-        <div id="welderResult" class="result-card" style="display:none;"><div class="result-title">📋 换算结果</div><div id="welderResultText"></div></div>
+        <div class="formula-hint">📐 公式：交流焊机 Sₛ=√JC·Sₑ (kVA) ｜ 直流焊机 Pₛ=√JC·Pₑ (kW) ，JC为铭牌暂载率（换算至100%）</div>
+        <div class="field">
+            <label>设备类型</label>
+            <select id="welderType">
+                <option value="ac">交流电焊机 (kVA)</option>
+                <option value="dc">直流电焊机 (kW)</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>铭牌容量</label>
+            <input type="number" id="welderSe" step="0.01" min="0" placeholder="例如: 25 kVA 或 kW">
+        </div>
+        <div class="field">
+            <label>暂载率 JC (%)</label>
+            <input type="number" id="welderJc" value="60" step="0.1" min="0" max="100">
+        </div>
+        <div id="welderResult" class="result-card" style="display:none;">
+            <div class="result-title">📋 换算结果 (JC=100%)</div>
+            <div id="welderResultText"></div>
+            <div class="note">※ 换算后的容量可用于“总用电量”或“分配电箱”中的焊机容量输入</div>
+        </div>
     </div>
 
-    <!-- 吊车电机 -->
+    <!-- 吊车电机计算 -->
     <div class="tab-pane" id="crane">
-        <div class="formula-hint">🏗️ 公式：Pₛ=2√JC·Pₑ（换算至JC=25%）</div>
-        <div class="field"><label>铭牌功率 Pₑ (kW)</label><input type="number" id="cranePe" step="0.01"></div>
-        <div class="field"><label>暂载率 JC (%)</label><input type="number" id="craneJc" value="25" step="0.1"></div>
-        <div id="craneResult" class="result-card" style="display:none;"><div class="result-title">📋 换算结果</div><div id="craneResultText"></div></div>
+        <div class="formula-hint">🏗️ 公式：Pₛ=2·√JC·Pₑ (换算至JC=25%) 适用于塔吊、施工升降机等反复短时工作制电机</div>
+        <div class="field">
+            <label>铭牌功率 Pₑ (kW)</label>
+            <input type="number" id="cranePe" step="0.01" min="0" placeholder="例如: 40 kW">
+        </div>
+        <div class="field">
+            <label>暂载率 JC (%)</label>
+            <input type="number" id="craneJc" value="25" step="0.1" min="0" max="100">
+        </div>
+        <div id="craneResult" class="result-card" style="display:none;">
+            <div class="result-title">📋 换算结果 (JC=25%)</div>
+            <div id="craneResultText"></div>
+            <div class="note">※ 换算后功率请计入总用电量∑P₁电动机总额定功率</div>
+        </div>
     </div>
 
-    <!-- 照明 -->
+    <!-- 照明负荷计算 -->
     <div class="tab-pane" id="light">
-        <div class="formula-hint">💡 系数：白炽灯=1.0｜日光灯=1.2｜金卤灯=1.1</div>
-        <div class="field"><label>灯具类型</label><select id="lightType"><option value="incandescent">白炽灯/碘钨灯</option><option value="fluorescent">日光灯/高压水银灯</option><option value="halide">金属卤化物灯</option></select></div>
-        <div class="field"><label>灯泡功率 (W)</label><input type="number" id="lightPe" step="0.1"></div>
-        <div id="lightResult" class="result-card" style="display:none;"><div class="result-title">📋 计算容量</div><div id="lightResultText"></div></div>
+        <div class="formula-hint">💡 考虑镇流器损耗：白炽灯=1.0，日光灯/节能灯=1.2，金属卤化物灯=1.1</div>
+        <div class="field">
+            <label>灯具类型</label>
+            <select id="lightType">
+                <option value="incandescent">白炽灯/碘钨灯</option>
+                <option value="fluorescent">日光灯/高压水银灯</option>
+                <option value="halide">金属卤化物灯</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>灯泡功率 (W)</label>
+            <input type="number" id="lightPe" step="0.1" min="0" placeholder="例如: 200 W">
+        </div>
+        <div id="lightResult" class="result-card" style="display:none;">
+            <div class="result-title">📋 计算负荷 (含损耗)</div>
+            <div id="lightResultText"></div>
+        </div>
     </div>
 
-    <!-- 单相换算 -->
+    <!-- 单相负荷换算三相 -->
     <div class="tab-pane" id="single">
-        <div class="formula-hint">📐 单相→三相：相电压×3｜线电压×√3</div>
-        <div class="field"><label>接线方式</label><select id="singleType"><option value="phase">接相电压</option><option value="line">接线电压</option></select></div>
-        <div class="field"><label>容量类型</label><select id="singlePowerType"><option value="active">有功功率 kW</option><option value="apparent">视在功率 kVA</option></select></div>
-        <div class="field"><label>三相最大单相容量和</label><input type="number" id="singlePmax" step="0.01"></div>
-        <div id="singleResult" class="result-card" style="display:none;"><div class="result-title">📋 等效三相负荷</div><div id="singleResultText"></div></div>
+        <div class="formula-hint">📐 单相设备换算为等效三相负荷：接相电压 ×3，接线电压 ×√3。按最大相/线负荷原则</div>
+        <div class="field">
+            <label>接线方式</label>
+            <select id="singleType">
+                <option value="phase">接相电压 (220V)</option>
+                <option value="line">接线电压 (380V)</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>容量类型</label>
+            <select id="singlePowerType">
+                <option value="active">有功功率 kW</option>
+                <option value="apparent">视在功率 kVA</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>最大单相(或线间)负荷容量 (kW/kVA)</label>
+            <input type="number" id="singlePmax" step="0.01" min="0" placeholder="取负荷最大的一相值">
+        </div>
+        <div id="singleResult" class="result-card" style="display:none;">
+            <div class="result-title">📋 等效三相负荷</div>
+            <div id="singleResultText"></div>
+        </div>
     </div>
 
-    <!-- 总用电量（严格按公式1-16） -->
+    <!-- 总用电量估算 JGJ46-2005 公式1-16 -->
     <div class="tab-pane" id="total-estimate">
-        <div class="formula-hint">📊 公式(1-16)：Sₚ=(1.05~1.1)[K₁∑P₁/cosφ + K₂∑S₂ + K₃∑P₃ + K₄∑P₄]，Iₚ=Sₚ/(√3Uₑ)</div>
+        <div class="example-hint">💡 示例参考：电机50kW，焊机30kVA，室内照明5kW，室外照明3kW (仅供参考)</div>
+        <div class="formula-hint">📊 公式 Sₚ = Kₛ·(K₁·∑P₁/cosφ + K₂·∑S₂ + K₃·∑P₃ + K₄·∑P₄) ，Iₚ = Sₚ/(√3·Uₑ)</div>
         <div class="field-row">
-            <div class="field"><label>电动机总额定功率 ∑P₁ (kW)</label><input type="number" id="est_p1" value="0" step="0.1"></div>
-            <div class="field"><label>电机平均功率因数 cosφ</label><input type="number" id="est_cosphi" value="0.7" step="0.01"></div>
+            <div class="field">
+                <label>电动机总额定功率 ∑P₁ (kW) <span class="info-icon" title="请使用经暂载率换算后的电机总功率">ⓘ</span></label>
+                <input type="number" id="est_p1" value="50" step="0.1" min="0">
+            </div>
+            <div class="field">
+                <label>电机平均功率因数 cosφ</label>
+                <input type="number" id="est_cosphi" value="0.7" step="0.01" min="0.1" max="0.99">
+            </div>
         </div>
-        <div class="field"><label>电焊机额定容量 ∑S₂ (kVA)</label><input type="number" id="est_s2" value="0" step="0.1"></div>
-        <div class="field"><label>室内照明容量 ∑P₃ (kW)</label><input type="number" id="est_p3" value="0" step="0.1"></div>
-        <div class="field"><label>室外照明容量 ∑P₄ (kW)</label><input type="number" id="est_p4" value="0" step="0.1"></div>
-        <div class="field-row">
-            <div class="field"><label>需要系数 K₁(电机)</label><input type="number" id="est_k1" value="0.7" step="0.01"></div>
-            <div class="field"><label>K₂(焊机)</label><input type="number" id="est_k2" value="0.4" step="0.01"></div>
+        <div class="field">
+            <label>电焊机额定容量 ∑S₂ (kVA) <span class="info-icon" title="已换算至JC=100%的电焊机总视在容量">ⓘ</span></label>
+            <input type="number" id="est_s2" value="30" step="0.1" min="0">
+        </div>
+        <div class="field">
+            <label>室内照明容量 ∑P₃ (kW)</label>
+            <input type="number" id="est_p3" value="5" step="0.1" min="0">
+        </div>
+        <div class="field">
+            <label>室外照明容量 ∑P₄ (kW)</label>
+            <input type="number" id="est_p4" value="3" step="0.1" min="0">
         </div>
         <div class="field-row">
-            <div class="field"><label>K₃(室内照明)</label><input type="number" id="est_k3" value="0.9" step="0.01"></div>
-            <div class="field"><label>K₄(室外照明)</label><input type="number" id="est_k4" value="1.0" step="0.01"></div>
+            <div class="field"><label>需要系数 K₁(电机)</label><input type="number" id="est_k1" value="0.7" step="0.01" min="0" max="1"></div>
+            <div class="field"><label>K₂(焊机)</label><input type="number" id="est_k2" value="0.4" step="0.01" min="0" max="1"></div>
         </div>
         <div class="field-row">
-            <div class="field"><label>同时系数 Kₛ(1.05~1.1)</label><input type="number" id="est_k" value="1.05" step="0.01"></div>
-            <div class="field"><label>额定电压 Uₑ (kV)</label><input type="number" id="est_ue" value="0.38" step="0.01"></div>
+            <div class="field"><label>K₃(室内照明)</label><input type="number" id="est_k3" value="0.9" step="0.01" min="0" max="1"></div>
+            <div class="field"><label>K₄(室外照明)</label><input type="number" id="est_k4" value="1.0" step="0.01" min="0" max="1"></div>
+        </div>
+        <div class="field-row">
+            <div class="field"><label>同时系数 Kₛ (1.05~1.1)</label><input type="number" id="est_k" value="1.05" step="0.01" min="1.0" max="1.2"></div>
+            <div class="field"><label>额定电压 Uₑ (kV)</label><input type="number" id="est_ue" value="0.38" step="0.01" min="0.22" max="1"></div>
         </div>
         <div class="result-card">
             <div class="result-line"><span>总视在负荷 S<sub>p</sub></span><strong id="est_sjs">0.00</strong> kVA</div>
@@ -271,17 +382,24 @@
             <span>📌 推荐铜芯电缆：<span id="est_cable" class="badge">-</span></span>
             <span>🔌 推荐开关：<span id="est_switch" class="badge">-</span></span>
         </div>
-        <div class="note">※ 严格按公式(1-16)计算：焊机直接按视在容量计入，无功率因数项</div>
+        <div class="note">※ 严格按JGJ46-2005公式1-16，焊机直接按视在容量计入，不乘功率因数</div>
     </div>
 
-    <!-- 总配电箱 -->
+    <!-- 总配电箱计算 -->
     <div class="tab-pane" id="total">
-        <div class="field"><label>设备总容量 ∑Pₑ (kW)</label><input type="number" id="total_pe" value="0" step="0.1"></div>
-        <div class="field-row">
-            <div class="field"><label>需要系数 Kₓ</label><input type="number" id="total_kx" value="0.8" step="0.01"></div>
-            <div class="field"><label>功率因数 cosφ</label><input type="number" id="total_cosphi" value="0.85" step="0.01"></div>
+        <div class="example-hint">💡 示例：总设备容量100kW，需用系数0.8，功率因数0.85</div>
+        <div class="field">
+            <label>设备总容量 ∑Pₑ (kW) <span class="info-icon" title="所有设备经暂载率换算后有功总和">ⓘ</span></label>
+            <input type="number" id="total_pe" value="100" step="0.1" min="0">
         </div>
-        <div class="field"><label>额定电压 Uₑ (kV)</label><input type="number" id="total_ue" value="0.38" step="0.01"></div>
+        <div class="field-row">
+            <div class="field"><label>需要系数 Kₓ</label><input type="number" id="total_kx" value="0.8" step="0.01" min="0" max="1"></div>
+            <div class="field"><label>功率因数 cosφ</label><input type="number" id="total_cosphi" value="0.85" step="0.01" min="0.1" max="0.99"></div>
+        </div>
+        <div class="field">
+            <label>额定电压 Uₑ (kV)</label>
+            <input type="number" id="total_ue" value="0.38" step="0.01" min="0.22" max="1">
+        </div>
         <div class="result-card">
             <div class="result-line"><span>有功 P<sub>js</sub></span><strong id="total_pjs">0.00</strong> kW</div>
             <div class="result-line"><span>无功 Q<sub>js</sub></span><strong id="total_qjs">0.00</strong> kvar</div>
@@ -294,19 +412,43 @@
         </div>
     </div>
 
-    <!-- 分配电箱 -->
+    <!-- 分配电箱计算 (分离系数) -->
     <div class="tab-pane" id="distribution">
-        <div class="formula-hint">🔀 电机+焊机分别计算有功无功，合成总电流</div>
-        <div class="field"><label>电机总功率 ∑P<sub>fn</sub> (kW)</label><input type="number" id="dist_pfn" value="0" step="0.1"></div>
-        <div class="field"><label>电机功率因数 cosφ<sub>m</sub></label><input type="number" id="dist_cosphi_m" value="0.75" step="0.01"></div>
-        <div class="field"><label>焊机总容量 ∑S<sub>fn</sub> (kVA)</label><input type="number" id="dist_sfn" value="0" step="0.1"></div>
-        <div class="field"><label>焊机功率因数 cosφ<sub>w</sub></label><input type="number" id="dist_cosphi_w" value="0.65" step="0.01"></div>
+        <div class="formula-hint">🔀 电机组与电焊机组分别采用不同需要系数，更符合现场实际，计算合成负荷电流</div>
+        <div class="field">
+            <label>电机组总功率 ∑P<sub>fn</sub> (kW) <span class="info-icon" title="已换算至JC=25%或100%">ⓘ</span></label>
+            <input type="number" id="dist_pfn" value="45" step="0.1" min="0">
+        </div>
+        <div class="field">
+            <label>电机功率因数 cosφ<sub>m</sub></label>
+            <input type="number" id="dist_cosphi_m" value="0.75" step="0.01" min="0.1" max="0.99">
+        </div>
+        <div class="field">
+            <label>焊机组总容量 ∑S<sub>fn</sub> (kVA) <span class="info-icon" title="已换算至JC=100%">ⓘ</span></label>
+            <input type="number" id="dist_sfn" value="30" step="0.1" min="0">
+        </div>
+        <div class="field">
+            <label>焊机功率因数 cosφ<sub>w</sub></label>
+            <input type="number" id="dist_cosphi_w" value="0.65" step="0.01" min="0.1" max="0.99">
+        </div>
         <div class="field-row">
-            <div class="field"><label>需要系数 K</label><input type="number" id="dist_k" value="0.9" step="0.01"></div>
-            <div class="field"><label>线电压 U (kV)</label><input type="number" id="dist_ue" value="0.38" step="0.01"></div>
+            <div class="field">
+                <label>电机需要系数 K<sub>m</sub></label>
+                <input type="number" id="dist_km" value="0.7" step="0.01" min="0" max="1">
+            </div>
+            <div class="field">
+                <label>焊机需要系数 K<sub>w</sub></label>
+                <input type="number" id="dist_kw" value="0.6" step="0.01" min="0" max="1">
+            </div>
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label>线电压 U (kV)</label>
+                <input type="number" id="dist_ue" value="0.38" step="0.01" min="0.22" max="1">
+            </div>
         </div>
         <div class="result-card">
-            <div class="result-line"><span>计算电流 I<sub>js</sub></span><strong id="dist_ijs">0.00</strong> A</div>
+            <div class="result-line"><span>计算电流 I<sub>js</sub> (分配箱干线)</span><strong id="dist_ijs">0.00</strong> A</div>
         </div>
         <div class="selection-badge">
             <span>📌 推荐铜芯电缆：<span id="dist_cable" class="badge">-</span></span>
@@ -314,14 +456,20 @@
         </div>
     </div>
 
-    <!-- 开关箱 -->
+    <!-- 开关箱计算 -->
     <div class="tab-pane" id="switch">
-        <div class="field"><label>设备功率 Pₑ (kW)</label><input type="number" id="switch_pe" value="0" step="0.1"></div>
-        <div class="field-row">
-            <div class="field"><label>效率 η</label><input type="number" id="switch_eta" value="0.8" step="0.01"></div>
-            <div class="field"><label>功率因数 cosφ</label><input type="number" id="switch_cosphi" value="0.8" step="0.01"></div>
+        <div class="field">
+            <label>设备功率 Pₑ (kW)</label>
+            <input type="number" id="switch_pe" value="15" step="0.1" min="0">
         </div>
-        <div class="field"><label>额定电压 Uₑ (kV)</label><input type="number" id="switch_ue" value="0.38" step="0.01"></div>
+        <div class="field-row">
+            <div class="field"><label>效率 η</label><input type="number" id="switch_eta" value="0.8" step="0.01" min="0.1" max="1"></div>
+            <div class="field"><label>功率因数 cosφ</label><input type="number" id="switch_cosphi" value="0.8" step="0.01" min="0.1" max="0.99"></div>
+        </div>
+        <div class="field">
+            <label>额定电压 Uₑ (kV)</label>
+            <input type="number" id="switch_ue" value="0.38" step="0.01" min="0.22" max="1">
+        </div>
         <div class="result-card">
             <div class="result-line"><span>有功负荷 P<sub>js</sub></span><strong id="switch_pjs">0.00</strong> kW</div>
             <div class="result-line"><span>计算电流 I<sub>js</sub></span><strong id="switch_ijs">0.00</strong> A</div>
@@ -334,169 +482,233 @@
 </div>
 
 <script>
-function getCableAndSwitch(I){
-    if(I<10)return{cable:"3×2.5mm²",breaker:"16A"};
-    if(I<16)return{cable:"3×2.5mm²",breaker:"20A"};
-    if(I<25)return{cable:"3×4mm²",breaker:"32A"};
-    if(I<32)return{cable:"3×6mm²",breaker:"40A"};
-    if(I<40)return{cable:"3×10mm²",breaker:"50A"};
-    if(I<63)return{cable:"3×16mm²",breaker:"63A"};
-    if(I<80)return{cable:"3×25mm²",breaker:"80A"};
-    if(I<100)return{cable:"3×35mm²",breaker:"100A"};
-    if(I<125)return{cable:"3×50mm²",breaker:"125A"};
-    if(I<160)return{cable:"3×70mm²",breaker:"160A"};
-    if(I<200)return{cable:"3×95mm²",breaker:"200A"};
-    if(I<250)return{cable:"3×120mm²",breaker:"250A"};
-    return{cable:"≥3×150mm²",breaker:"≥315A"};
-}
+    // ----------------------------- 工具函数 ---------------------------------
+    // 安全数值解析 + 校验
+    function safeNumber(value, defaultValue = 0, fieldName = '') {
+        let num = parseFloat(value);
+        if (isNaN(num) || num < 0) {
+            if (fieldName) console.warn(`[校验] ${fieldName} 输入无效，已置为 ${defaultValue}`);
+            return defaultValue;
+        }
+        return num;
+    }
 
-function autoWelder(){
-    const t=document.getElementById('welderType').value;
-    const se=parseFloat(document.getElementById('welderSe').value)||0;
-    const jc=parseFloat(document.getElementById('welderJc').value)||0;
-    const box=document.getElementById('welderResult');
-    const txt=document.getElementById('welderResultText');
-    if(se<=0||jc<=0||jc>100){box.style.display='none';return;}
-    const r=se*Math.sqrt(jc/100);
-    txt.innerHTML=t==='ac'?`<div class="result-line"><span>交流电焊机 ${se.toFixed(2)} kVA</span><strong>${r.toFixed(2)} kVA</strong></div>`:`<div class="result-line"><span>直流电焊机 ${se.toFixed(2)} kW</span><strong>${r.toFixed(2)} kW</strong></div>`;
-    box.style.display='block';
-}
+    // 电缆/开关选型表 (增强: 大于250A给出双拼建议)
+    function getCableAndSwitch(I) {
+        if (I < 10) return { cable: "3×2.5mm²", breaker: "16A" };
+        if (I < 16) return { cable: "3×2.5mm²", breaker: "20A" };
+        if (I < 25) return { cable: "3×4mm²", breaker: "32A" };
+        if (I < 32) return { cable: "3×6mm²", breaker: "40A" };
+        if (I < 40) return { cable: "3×10mm²", breaker: "50A" };
+        if (I < 63) return { cable: "3×16mm²", breaker: "63A" };
+        if (I < 80) return { cable: "3×25mm²", breaker: "80A" };
+        if (I < 100) return { cable: "3×35mm²", breaker: "100A" };
+        if (I < 125) return { cable: "3×50mm²", breaker: "125A" };
+        if (I < 160) return { cable: "3×70mm²", breaker: "160A" };
+        if (I < 200) return { cable: "3×95mm²", breaker: "200A" };
+        if (I < 250) return { cable: "3×120mm²", breaker: "250A" };
+        if (I < 315) return { cable: "3×150mm² 或 双拼3×95mm²", breaker: "315A" };
+        return { cable: "双拼≥3×150mm²", breaker: "≥400A" };
+    }
 
-function autoCrane(){
-    const pe=parseFloat(document.getElementById('cranePe').value)||0;
-    const jc=parseFloat(document.getElementById('craneJc').value)||0;
-    const box=document.getElementById('craneResult');
-    const txt=document.getElementById('craneResultText');
-    if(pe<=0||jc<=0||jc>100){box.style.display='none';return;}
-    const r=2*pe*Math.sqrt(jc/100);
-    txt.innerHTML=`<div class="result-line"><span>吊车 ${pe.toFixed(2)} kW</span><strong>${r.toFixed(2)} kW</strong></div>`;
-    box.style.display='block';
-}
+    // ----------------------------- 独立计算模块 (实时) -------------------------
+    function autoWelder() {
+        const type = document.getElementById('welderType').value;
+        let se = safeNumber(document.getElementById('welderSe').value, 0, '电焊机容量');
+        let jc = safeNumber(document.getElementById('welderJc').value, 0, '暂载率');
+        const resultBox = document.getElementById('welderResult');
+        const textDom = document.getElementById('welderResultText');
+        if (se <= 0 || jc <= 0) {
+            resultBox.style.display = 'none';
+            return;
+        }
+        const calcVal = se * Math.sqrt(jc / 100);
+        const unit = type === 'ac' ? 'kVA' : 'kW';
+        textDom.innerHTML = `<div class="result-line"><span>铭牌容量 ${se.toFixed(2)} ${unit} (JC=${jc}%)</span><strong>换算后 = ${calcVal.toFixed(2)} ${unit}</strong></div>`;
+        resultBox.style.display = 'block';
+    }
 
-function autoLight(){
-    const t=document.getElementById('lightType').value;
-    const pe=parseFloat(document.getElementById('lightPe').value)||0;
-    const box=document.getElementById('lightResult');
-    const txt=document.getElementById('lightResultText');
-    if(pe<=0){box.style.display='none';return;}
-    let c=1,n='';
-    if(t==='incandescent'){c=1;n='白炽灯';}
-    else if(t==='fluorescent'){c=1.2;n='日光灯';}
-    else{c=1.1;n='金卤灯';}
-    const r=pe*c;
-    txt.innerHTML=`<div class="result-line"><span>${n} ${pe.toFixed(0)} W</span><strong>${r.toFixed(0)} W</strong></div>`;
-    box.style.display='block';
-}
+    function autoCrane() {
+        let pe = safeNumber(document.getElementById('cranePe').value, 0, '吊车功率');
+        let jc = safeNumber(document.getElementById('craneJc').value, 0, '吊车暂载率');
+        const resultBox = document.getElementById('craneResult');
+        const textDom = document.getElementById('craneResultText');
+        if (pe <= 0 || jc <= 0) {
+            resultBox.style.display = 'none';
+            return;
+        }
+        const calcVal = 2 * pe * Math.sqrt(jc / 100);
+        textDom.innerHTML = `<div class="result-line"><span>吊车电机 ${pe.toFixed(2)} kW (JC=${jc}%)</span><strong>换算至JC=25%: ${calcVal.toFixed(2)} kW</strong></div>`;
+        resultBox.style.display = 'block';
+    }
 
-function autoSingle(){
-    const t=document.getElementById('singleType').value;
-    const pt=document.getElementById('singlePowerType').value;
-    const m=parseFloat(document.getElementById('singlePmax').value)||0;
-    const box=document.getElementById('singleResult');
-    const txt=document.getElementById('singleResultText');
-    if(m<=0){box.style.display='none';return;}
-    const coe=t==='phase'?3:Math.sqrt(3);
-    const conn=t==='phase'?'相电压':'线电压';
-    const unit=pt==='active'?'kW':'kVA';
-    const r=m*coe;
-    txt.innerHTML=`<div class="result-line"><span>${conn} 单相最大值 ${m.toFixed(2)} ${unit}</span><strong>${r.toFixed(2)} ${unit}</strong></div>`;
-    box.style.display='block';
-}
+    function autoLight() {
+        const type = document.getElementById('lightType').value;
+        let pe = safeNumber(document.getElementById('lightPe').value, 0, '照明功率');
+        const resultBox = document.getElementById('lightResult');
+        const textDom = document.getElementById('lightResultText');
+        if (pe <= 0) {
+            resultBox.style.display = 'none';
+            return;
+        }
+        let coeff = 1.0, name = '白炽灯/碘钨灯';
+        if (type === 'fluorescent') { coeff = 1.2; name = '日光灯/高压水银灯'; }
+        else if (type === 'halide') { coeff = 1.1; name = '金属卤化物灯'; }
+        const calcVal = pe * coeff;
+        textDom.innerHTML = `<div class="result-line"><span>${name} ${pe.toFixed(0)} W</span><strong>计算功率 ${calcVal.toFixed(0)} W (含镇流器)</strong></div>`;
+        resultBox.style.display = 'block';
+    }
 
-// 严格按公式(1-16)修改总用电量算法
-function computeAll(){
-    // ===== 总用电量：公式(1-16) =====
-    const p1=parseFloat(document.getElementById('est_p1').value)||0;
-    const s2=parseFloat(document.getElementById('est_s2').value)||0;
-    const p3=parseFloat(document.getElementById('est_p3').value)||0;
-    const p4=parseFloat(document.getElementById('est_p4').value)||0;
-    const cosphi=parseFloat(document.getElementById('est_cosphi').value)||0.7;
-    const k1=parseFloat(document.getElementById('est_k1').value)||0.7;
-    const k2=parseFloat(document.getElementById('est_k2').value)||0.4;
-    const k3=parseFloat(document.getElementById('est_k3').value)||0.9;
-    const k4=parseFloat(document.getElementById('est_k4').value)||1;
-    const k=parseFloat(document.getElementById('est_k').value)||1.05;
-    const ue=parseFloat(document.getElementById('est_ue').value)||0.38;
+    function autoSingle() {
+        const type = document.getElementById('singleType').value;
+        const powerType = document.getElementById('singlePowerType').value;
+        let pmax = safeNumber(document.getElementById('singlePmax').value, 0, '单相容量');
+        const resultBox = document.getElementById('singleResult');
+        const textDom = document.getElementById('singleResultText');
+        if (pmax <= 0) {
+            resultBox.style.display = 'none';
+            return;
+        }
+        const coeff = type === 'phase' ? 3 : Math.sqrt(3);
+        const connName = type === 'phase' ? '相电压' : '线电压';
+        const unit = powerType === 'active' ? 'kW' : 'kVA';
+        const calcVal = pmax * coeff;
+        textDom.innerHTML = `<div class="result-line"><span>${connName} 单相最大容量 ${pmax.toFixed(2)} ${unit}</span><strong>等效三相负荷 = ${calcVal.toFixed(2)} ${unit}</strong></div>`;
+        resultBox.style.display = 'block';
+    }
 
-    // 公式核心：Sₚ = K × [ K₁×∑P₁/cosφ + K₂×∑S₂ + K₃×∑P₃ + K₄×∑P₄ ]
-    const term1 = k1 * p1 / Math.min(0.99, Math.max(0.1, cosphi));
-    const term2 = k2 * s2;
-    const term3 = k3 * p3;
-    const term4 = k4 * p4;
-    const Sp = k * (term1 + term2 + term3 + term4);
-    const Ip = Sp / (Math.sqrt(3) * ue);
+    // 主计算（总用电量+总配电+分配电+开关箱）
+    function computeMaster() {
+        // 1. 总用电量估算
+        let p1 = safeNumber(document.getElementById('est_p1').value, 0);
+        let s2 = safeNumber(document.getElementById('est_s2').value, 0);
+        let p3 = safeNumber(document.getElementById('est_p3').value, 0);
+        let p4 = safeNumber(document.getElementById('est_p4').value, 0);
+        let cosphi = Math.min(0.99, Math.max(0.1, safeNumber(document.getElementById('est_cosphi').value, 0.7)));
+        let k1 = safeNumber(document.getElementById('est_k1').value, 0.7);
+        let k2 = safeNumber(document.getElementById('est_k2').value, 0.4);
+        let k3 = safeNumber(document.getElementById('est_k3').value, 0.9);
+        let k4 = safeNumber(document.getElementById('est_k4').value, 1.0);
+        let kSum = safeNumber(document.getElementById('est_k').value, 1.05);
+        let ueEst = safeNumber(document.getElementById('est_ue').value, 0.38);
+        const term1 = k1 * p1 / cosphi;
+        const term2 = k2 * s2;
+        const term3 = k3 * p3;
+        const term4 = k4 * p4;
+        const Sp = kSum * (term1 + term2 + term3 + term4);
+        const Ip = Sp / (Math.sqrt(3) * ueEst);
+        document.getElementById('est_sjs').textContent = Sp.toFixed(2);
+        document.getElementById('est_ijs').textContent = Ip.toFixed(2);
+        let resEst = getCableAndSwitch(Ip);
+        document.getElementById('est_cable').textContent = resEst.cable;
+        document.getElementById('est_switch').textContent = resEst.breaker;
 
-    document.getElementById('est_sjs').textContent = Sp.toFixed(2);
-    document.getElementById('est_ijs').textContent = Ip.toFixed(2);
-    const s1=getCableAndSwitch(Ip);
-    document.getElementById('est_cable').textContent=s1.cable;
-    document.getElementById('est_switch').textContent=s1.breaker;
+        // 2. 总配电箱
+        let totalPe = safeNumber(document.getElementById('total_pe').value, 0);
+        let totalKx = safeNumber(document.getElementById('total_kx').value, 0.8);
+        let totalCos = Math.min(0.99, Math.max(0.1, safeNumber(document.getElementById('total_cosphi').value, 0.85)));
+        let ueTotal = safeNumber(document.getElementById('total_ue').value, 0.38);
+        const PjTotal = totalKx * totalPe;
+        const QjTotal = PjTotal * Math.tan(Math.acos(totalCos));
+        const SjTotal = Math.hypot(PjTotal, QjTotal);
+        const IjTotal = SjTotal / (Math.sqrt(3) * ueTotal);
+        document.getElementById('total_pjs').textContent = PjTotal.toFixed(2);
+        document.getElementById('total_qjs').textContent = QjTotal.toFixed(2);
+        document.getElementById('total_sjs').textContent = SjTotal.toFixed(2);
+        document.getElementById('total_ijs').textContent = IjTotal.toFixed(2);
+        let resTotal = getCableAndSwitch(IjTotal);
+        document.getElementById('total_cable').textContent = resTotal.cable;
+        document.getElementById('total_switch').textContent = resTotal.breaker;
 
-    // 总配电箱
-    const pe=parseFloat(document.getElementById('total_pe').value)||0;
-    const kx=parseFloat(document.getElementById('total_kx').value)||0.8;
-    const cp=parseFloat(document.getElementById('total_cosphi').value)||0.85;
-    const ut=parseFloat(document.getElementById('total_ue').value)||0.38;
-    const Pj=kx*pe;
-    const Qj=Pj*Math.tan(Math.acos(Math.min(0.99,cp)));
-    const Sj=Math.sqrt(Pj**2+Qj**2);
-    const Ij=Sj/(Math.sqrt(3)*ut);
-    document.getElementById('total_pjs').textContent=Pj.toFixed(2);
-    document.getElementById('total_qjs').textContent=Qj.toFixed(2);
-    document.getElementById('total_sjs').textContent=Sj.toFixed(2);
-    document.getElementById('total_ijs').textContent=Ij.toFixed(2);
-    const st=getCableAndSwitch(Ij);
-    document.getElementById('total_cable').textContent=st.cable;
-    document.getElementById('total_switch').textContent=st.breaker;
+        // 3. 分配电箱 (分离系数)
+        let distPfn = safeNumber(document.getElementById('dist_pfn').value, 0);
+        let distSfn = safeNumber(document.getElementById('dist_sfn').value, 0);
+        let km = safeNumber(document.getElementById('dist_km').value, 0.7);
+        let kw = safeNumber(document.getElementById('dist_kw').value, 0.6);
+        let cosM = Math.min(0.99, Math.max(0.1, safeNumber(document.getElementById('dist_cosphi_m').value, 0.75)));
+        let cosW = Math.min(0.99, Math.max(0.1, safeNumber(document.getElementById('dist_cosphi_w').value, 0.65)));
+        let ueDist = safeNumber(document.getElementById('dist_ue').value, 0.38);
+        const Pm = km * distPfn;
+        const Qm = Pm * Math.tan(Math.acos(cosM));
+        const Pw = kw * distSfn * cosW;
+        const Qw = kw * distSfn * Math.sqrt(1 - cosW * cosW);
+        const totalPDist = Pm + Pw;
+        const totalQDist = Qm + Qw;
+        const totalSDist = Math.hypot(totalPDist, totalQDist);
+        const IjDist = totalSDist / (Math.sqrt(3) * ueDist);
+        document.getElementById('dist_ijs').textContent = IjDist.toFixed(2);
+        let resDist = getCableAndSwitch(IjDist);
+        document.getElementById('dist_cable').textContent = resDist.cable;
+        document.getElementById('dist_switch').textContent = resDist.breaker;
 
-    // 分配电箱
-    const pfn=parseFloat(document.getElementById('dist_pfn').value)||0;
-    const sfn=parseFloat(document.getElementById('dist_sfn').value)||0;
-    const kd=parseFloat(document.getElementById('dist_k').value)||0.9;
-    const cm=parseFloat(document.getElementById('dist_cosphi_m').value)||0.75;
-    const cw=parseFloat(document.getElementById('dist_cosphi_w').value)||0.65;
-    const ud=parseFloat(document.getElementById('dist_ue').value)||0.38;
-    const Pmd=kd*pfn;
-    const Qmd=Pmd*Math.tan(Math.acos(Math.min(0.99,cm)));
-    const Pwd=kd*sfn*cw;
-    const Qwd=kd*sfn*Math.sqrt(1-cw**2);
-    const Sd=Math.sqrt((Pmd+Pwd)**2+(Qmd+Qwd)**2);
-    const Id=Sd/(Math.sqrt(3)*ud);
-    document.getElementById('dist_ijs').textContent=Id.toFixed(2);
-    const sd=getCableAndSwitch(Id);
-    document.getElementById('dist_cable').textContent=sd.cable;
-    document.getElementById('dist_switch').textContent=sd.breaker;
+        // 4. 开关箱
+        let swPe = safeNumber(document.getElementById('switch_pe').value, 0);
+        let swEta = Math.min(1, Math.max(0.1, safeNumber(document.getElementById('switch_eta').value, 0.8)));
+        let swCos = Math.min(0.99, Math.max(0.1, safeNumber(document.getElementById('switch_cosphi').value, 0.8)));
+        let ueSw = safeNumber(document.getElementById('switch_ue').value, 0.38);
+        const PjSw = swPe / swEta;
+        const IjSw = PjSw / (Math.sqrt(3) * ueSw * swCos);
+        document.getElementById('switch_pjs').textContent = PjSw.toFixed(2);
+        document.getElementById('switch_ijs').textContent = IjSw.toFixed(2);
+        let resSw = getCableAndSwitch(IjSw);
+        document.getElementById('switch_cable').textContent = resSw.cable;
+        document.getElementById('switch_switch').textContent = resSw.breaker;
+    }
 
-    // 开关箱
-    const pes=parseFloat(document.getElementById('switch_pe').value)||0;
-    const eta=parseFloat(document.getElementById('switch_eta').value)||0.8;
-    const cs=parseFloat(document.getElementById('switch_cosphi').value)||0.8;
-    const us=parseFloat(document.getElementById('switch_ue').value)||0.38;
-    const Pjs=pes/(eta>0?eta:0.8);
-    const IjsSw=Pjs/(Math.sqrt(3)*us*cs);
-    document.getElementById('switch_pjs').textContent=Pjs.toFixed(2);
-    document.getElementById('switch_ijs').textContent=IjsSw.toFixed(2);
-    const ss=getCableAndSwitch(IjsSw);
-    document.getElementById('switch_cable').textContent=ss.cable;
-    document.getElementById('switch_switch').textContent=ss.breaker;
-}
+    // ----------------------------- 防抖优化 ---------------------------------
+    let debounceTimer;
+    function debouncedUpdate() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            autoWelder();
+            autoCrane();
+            autoLight();
+            autoSingle();
+            computeMaster();
+        }, 20);
+    }
 
-// 标签切换
-document.querySelectorAll('.tab-item').forEach(tab=>{
-    tab.addEventListener('click',()=>{
-        document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
-        document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById(tab.dataset.tab).classList.add('active');
+    // ----------------------------- 标签页切换 + 滚动 -------------------------
+    function initTabs() {
+        const tabs = document.querySelectorAll('.tab-item');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const targetId = this.dataset.tab;
+                document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                const targetPane = document.getElementById(targetId);
+                if (targetPane) {
+                    targetPane.classList.add('active');
+                    // 平滑滚动至当前面板顶部
+                    setTimeout(() => {
+                        targetPane.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
+                }
+            });
+        });
+    }
+
+    // 监听所有输入变化
+    function bindEvents() {
+        const allInputs = document.querySelectorAll('input, select');
+        allInputs.forEach(el => {
+            el.addEventListener('input', debouncedUpdate);
+            el.addEventListener('change', debouncedUpdate);
+        });
+    }
+
+    // 初始化默认计算
+    window.addEventListener('load', () => {
+        initTabs();
+        bindEvents();
+        // 立即计算一次
+        autoWelder();
+        autoCrane();
+        autoLight();
+        autoSingle();
+        computeMaster();
     });
-});
-
-// 全局实时计算
-document.querySelectorAll('input,select').forEach(el=>{
-    el.addEventListener('input',()=>{autoWelder();autoCrane();autoLight();autoSingle();computeAll();});
-});
-
-window.onload=()=>{autoWelder();autoCrane();autoLight();autoSingle();computeAll();};
 </script>
 </body>
 </html>
